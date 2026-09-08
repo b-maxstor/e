@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إدارة المستخدمين والمسوقين</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<style>
+body{
+  font-family:Arial, sans-serif;
+  padding:15px;
+  background:#f4f4f4;
+  margin:0;
+}
+input, select, button{
+  padding:7px;
+  margin:4px 0;
+  width:100%;
+  box-sizing:border-box;
+}
+button{
+  cursor:pointer;
+}
+table{
+  border-collapse:collapse;
+  width:100%;
+  background:white;
+  margin-top:15px;
+  display:block;
+  overflow-x:auto;
+}
+th,td{
+  border:1px solid #ccc;
+  padding:8px;
+  text-align:center;
+  white-space:nowrap;
+}
+th{
+  background:#eee;
+}
+.container{
+  max-width:1100px;
+  margin:auto;
+}
+.add-user, .actions{
+  margin-bottom:15px;
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.add-user input, .add-user select{
+  margin-bottom:8px;
+}
+.msg{
+  color:green;
+  margin-top:5px;
+  font-weight: bold;
+}
+@media(max-width:600px){
+  body{
+    padding:10px;
+  }
+  .add-user input, .add-user select, .add-user button{
+    font-size:14px;
+  }
+  table{
+    font-size:12px;
+  }
+  .actions button{
+    font-size:12px;
+    padding:5px;
+  }
+}
+</style>
+
+</head>
+
+<body>
+<div class="container">
+<h2 align="center">إدارة المستخدمين والمسوقين</h2>
+
+<div class="add-user">
+<h3>إضافة مستخدم / مسوق جديد</h3>
+<input id="username" placeholder="اسم المستخدم">
+<input id="pwd" placeholder="كلمة المرور" type="password">
+<input id="fullname" placeholder="الاسم الكامل">
+<input id="bank_account" placeholder="رقم الحساب البنكي (للمسوقين)">
+<select id="usertype">
+<option value="مسوق">مسوق</option>
+<option value="مدير">مدير</option>
+<option value="تقني حاسوب">تقني حاسوب</option>
+<option value="مشرف">مشرف</option>
+<option value="بائع">بائع</option>
+</select>
+<button onclick="addUser()" style="background: #2563eb; color: white; border: none; border-radius: 4px; font-weight: bold;">إضافة</button>
+<p id="msg" class="msg"></p>
+</div>
+
+<div class="actions">
+<input id="search" placeholder="بحث باسم المستخدم أو الاسم الكامل أو الحساب البنكي..." onkeyup="searchUsers()">
+<div style="display: flex; gap: 10px; margin-top: 5px;">
+  <button onclick="exportExcel()" style="background: #16a34a; color: white; border: none; border-radius: 4px;">تصدير Excel</button>
+  <button onclick="printUsersPDF()" style="background: #dc2626; color: white; border: none; border-radius: 4px;">طباعة PDF</button>
+</div>
+</div>
+
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>اسم المستخدم</th>
+<th>كلمة المرور</th>
+<th>نوع المستخدم</th>
+<th>الاسم الكامل</th>
+<th>الحساب البنكي</th>
+<th>تعديل</th>
+<th>حذف</th>
+</tr>
+</thead>
+<tbody id="usersTable"></tbody>
+</table>
+</div>
+
+<script>
+const supabaseUrl="https://hjcaocvhzeejmglzjuub.supabase.co";
+const supabaseKey="sb_publishable_fLbGeBPrc94jjWEL0mZRbg_tNdOhFnd";
+const client=window.supabase.createClient(supabaseUrl,supabaseKey);
+let users=[];
+
+loadUsers();
+
+async function loadUsers(){
+  const {data,error}=await client.from("tb_users").select("*").order("id",{ascending:true});
+  if(error){ console.log(error); return; }
+  users=data;
+  drawTable(users);
+}
+
+function drawTable(data){
+  let table="";
+  data.forEach(user=>{
+    table+=`
+<tr>
+<td>${user.id}</td>
+<td contenteditable="true" id="u${user.id}">${user.username||""}</td>
+<td style="display:flex;gap:5px;justify-content:center;align-items:center;">
+<input type="password" id="p${user.id}" value="${user.pwd||""}" style="border:none;text-align:center;width:70%;">
+<button onclick="togglePassword('p${user.id}')">👁️</button>
+</td>
+<td>
+<select id="t${user.id}">
+<option ${user.usertype=="مسوق"?"selected":""}>مسوق</option>
+<option ${user.usertype=="مدير"?"selected":""}>مدير</option>
+<option ${user.usertype=="تقني حاسوب"?"selected":""}>تقني حاسوب</option>
+<option ${user.usertype=="مشرف"?"selected":""}>مشرف</option>
+<option ${user.usertype=="بائع"?"selected":""}>بائع</option>
+</select>
+</td>
+<td contenteditable="true" id="f${user.id}">${user.fullname||""}</td>
+<td contenteditable="true" id="b${user.id}">${user.bank_account||""}</td>
+<td><button onclick="updateUser('${user.id}')" style="background:#2563eb; color:white; border:none; padding:4px 8px; border-radius:4px;">حفظ</button></td>
+<td><button onclick="deleteUser('${user.id}')" style="background:#dc2626; color:white; border:none; padding:4px 8px; border-radius:4px;">حذف</button></td>
+</tr>
+`;
+  });
+  document.getElementById("usersTable").innerHTML=table;
+}
+
+function togglePassword(id){
+  let input=document.getElementById(id);
+  input.type = input.type==="password"?"text":"password";
+}
+
+async function addUser(){
+  let username=document.getElementById("username").value.trim();
+  let pwd=document.getElementById("pwd").value.trim();
+  let fullname=document.getElementById("fullname").value.trim();
+  let bank_account=document.getElementById("bank_account").value.trim();
+  let usertype=document.getElementById("usertype").value;
+
+  if(!username || !pwd) {
+    document.getElementById("msg").style.color = "red";
+    document.getElementById("msg").innerHTML = "يرجى كتابة اسم المستخدم وكلمة المرور على الأقل";
+    return;
+  }
+
+  const {error}=await client.from("tb_users").insert([{username, pwd, fullname, bank_account, usertype}]);
+  if(error){ 
+    document.getElementById("msg").style.color = "red";
+    document.getElementById("msg").innerHTML = error.message; 
+  } 
+  else { 
+    document.getElementById("msg").style.color = "green";
+    document.getElementById("msg").innerHTML = "تمت إضافة المستخدم بنجاح"; 
+    // تفريغ الحقول
+    document.getElementById("username").value = "";
+    document.getElementById("pwd").value = "";
+    document.getElementById("fullname").value = "";
+    document.getElementById("bank_account").value = "";
+    loadUsers(); 
+  }
+}
+
+async function updateUser(id){
+  let username=document.getElementById("u"+id).innerText.trim();
+  let pwd=document.getElementById("p"+id).value.trim();
+  let fullname=document.getElementById("f"+id).innerText.trim();
+  let bank_account=document.getElementById("b"+id).innerText.trim();
+  let usertype=document.getElementById("t"+id).value;
+
+  const {error} = await client.from("tb_users").update({username, pwd, fullname, bank_account, usertype}).eq("id",id);
+  if(error){
+    alert("حدث خطأ أثناء التحديث: " + error.message);
+  } else {
+    alert("تم حفظ التعديلات بنجاح");
+    loadUsers();
+  }
+}
+
+async function deleteUser(id){
+  if(confirm("هل أنت تأكد من رغبتك في حذف هذا المستخدم؟")){
+    await client.from("tb_users").delete().eq("id",id);
+    loadUsers();
+  }
+}
+
+function searchUsers(){
+  let key=document.getElementById("search").value.toLowerCase();
+  let filtered=users.filter(u=>
+    (u.username||"").toLowerCase().includes(key) || 
+    (u.fullname||"").toLowerCase().includes(key) ||
+    (u.bank_account||"").toLowerCase().includes(key)
+  );
+  drawTable(filtered);
+}
+
+function exportExcel(){
+  let ws=XLSX.utils.json_to_sheet(users);
+  let wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Users");
+  XLSX.writeFile(wb,"users_list.xlsx");
+}
+
+function printUsersPDF(){
+  let element=document.createElement("div");
+  let html=`<h2 style="text-align:center;">كشف المستخدمين والمسوقين</h2>
+<table border="1" style="width:100%;border-collapse:collapse;text-align:center;direction:rtl">
+<tr>
+<th>ID</th><th>اسم المستخدم</th><th>نوع المستخدم</th><th>الاسم الكامل</th><th>الحساب البنكي</th>
+</tr>`;
+  users.forEach(u=>{
+    html+=`<tr>
+<td>${u.id}</td>
+<td>${u.username||""}</td>
+<td>${u.usertype||""}</td>
+<td>${u.fullname||""}</td>
+<td>${u.bank_account||"-"}</td>
+</tr>`;
+  });
+  html+=`</table>`;
+  element.innerHTML=html;
+  html2pdf().from(element).save("users_list.pdf");
+}
+</script>
+</body>
+</html>
