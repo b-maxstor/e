@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة وتعديل الطلبات والعمولات - Supabase</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Supabase SDK v2 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-100 font-sans p-4 md:p-8">
+
+<div class="max-w-6xl mx-auto bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+    
+    <!-- شريط البحث والتحكم بالطلب -->
+    <div class="bg-slate-800 text-white p-6">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-xl font-bold">تعديل الطلب #<span id="active-order-id" class="text-yellow-400">---</span></h1>
+                <p class="text-xs text-gray-300 mt-1">جلب العمولة مباشرة من جدول المنتجات (products) مع إمكانية التعديل</p>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                <select id="orders-select" class="bg-slate-700 text-white text-sm border border-slate-600 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]">
+                    <option value="">-- جاري الاتصال بالخادم --</option>
+                </select>
+                
+                <input type="number" id="manual-order-id" placeholder="id_web_order" class="bg-slate-700 text-white text-sm border border-slate-600 rounded-lg p-2 w-28 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                
+                <button type="button" id="btn-fetch" class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg font-medium transition flex items-center gap-1">
+                    <i class="fas fa-download"></i> جلب
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- منطقة الإشعارات وتنبيهات الأخطاء -->
+    <div id="alert-box" class="hidden p-4 text-sm font-semibold border-b"></div>
+
+    <form id="main-form" class="p-6">
+        
+        <!-- 1. بيانات العميل من web_orders -->
+        <div class="mb-8">
+            <h2 class="text-base font-bold text-gray-800 border-r-4 border-blue-600 pr-3 mb-4">بيانات العميل (web_orders)</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">اسم العميل (client_name)</label>
+                    <input type="text" id="client_name" required class="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">رقم الهاتف (client_phone)</label>
+                    <input type="text" id="client_phone" required class="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">الهاتف الاحتياطي (client_second_phone)</label>
+                    <input type="text" id="client_second_phone" class="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">العنوان (client_address)</label>
+                    <input type="text" id="client_address" required class="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. المنتجات والتفاصيل -->
+        <div class="mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-base font-bold text-gray-800 border-r-4 border-blue-600 pr-3">منتجات الطلب والعمولات</h2>
+                <button type="button" id="btn-add-row" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-2 rounded-lg font-medium transition">
+                    <i class="fas fa-plus ml-1"></i> إضافة منتج جديد
+                </button>
+            </div>
+
+            <div class="overflow-x-auto border rounded-lg border-gray-200">
+                <table class="w-full text-right text-sm">
+                    <thead class="bg-gray-100 text-gray-700 border-b">
+                        <tr>
+                            <th class="p-3">المنتج</th>
+                            <th class="p-3 w-24 text-center">الكمية</th>
+                            <th class="p-3 w-28 text-center">السعر</th>
+                            <th class="p-3 w-32 text-center">عمولة القطعة (من products)</th>
+                            <th class="p-3 w-28 text-center">المجموع</th>
+                            <th class="p-3 w-28 text-center">إجمالي العمولة</th>
+                            <th class="p-3 w-16 text-center">إزالة</th>
+                        </tr>
+                    </thead>
+                    <tbody id="items-tbody" class="divide-y divide-gray-200">
+                        <!-- الصفوف تُنشأ ديناميكياً -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 3. المبالغ والعمولات الإجمالية -->
+        <div class="bg-gray-50 border border-gray-200 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+            <div class="text-sm font-semibold text-gray-700">
+                إجمالي عمولة الطلب: <span id="summary-commission" class="text-emerald-600 font-bold text-xl mr-1">0.00</span>
+            </div>
+            <div class="text-sm font-semibold text-gray-800">
+                المبلغ الإجمالي للطلب: <span id="summary-total" class="text-blue-600 font-bold text-xl mr-1">0.00</span>
+            </div>
+        </div>
+
+        <!-- أزرار التحكم -->
+        <div class="flex justify-end gap-3 border-t pt-4">
+            <button type="submit" id="btn-save" class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-6 py-2.5 rounded-lg font-bold transition">
+                <i class="fas fa-save ml-1"></i> حفظ التعديلات
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+// 1. إعداد العميل لـ Supabase
+const SUPABASE_URL = 'https://ihlwkwiimimoiplfqcdk.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Yr8COAP3Hp_cibgD1wdQZg_Ic9zZEoK';
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let globalProducts = [];
+let currentOrderId = null;
+
+// 2. عند فتح الصفحة
+document.addEventListener('DOMContentLoaded', async () => {
+    showAlert('جاري تحميل البيانات والمنتجات...', 'info');
+    await loadProducts();
+    await loadOrdersList();
+    
+    document.getElementById('btn-fetch').addEventListener('click', () => {
+        const id = document.getElementById('manual-order-id').value;
+        if (id) fetchSingleOrder(id);
+        else showAlert('يرجى إدخال رقم الطلب', 'error');
+    });
+
+    document.getElementById('orders-select').addEventListener('change', (e) => {
+        if (e.target.value) fetchSingleOrder(e.target.value);
+    });
+
+    document.getElementById('btn-add-row').addEventListener('click', () => {
+        addNewRow();
+    });
+
+    document.getElementById('main-form').addEventListener('submit', handleSave);
+});
+
+// إظهار الرسائل
+function showAlert(msg, type = 'info') {
+    const box = document.getElementById('alert-box');
+    box.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700', 'bg-blue-100', 'text-blue-700');
+    
+    if (type === 'error') box.classList.add('bg-red-100', 'text-red-700');
+    else if (type === 'success') box.classList.add('bg-green-100', 'text-green-700');
+    else box.classList.add('bg-blue-100', 'text-blue-700');
+    
+    box.textContent = msg;
+}
+
+// 3. جلب قائمة المنتجات مع عمولتها وأسعارها المخزنة في جدول products
+async function loadProducts() {
+    try {
+        const { data, error } = await client
+            .from('products')
+            .select('id_product, product_name, seal_price, commission');
+
+        if (error) throw error;
+        globalProducts = data || [];
+        console.log("تم جلب المنتجات والعمولات الاصليّة:", globalProducts);
+    } catch (err) {
+        console.error("خطأ جلب المنتجات:", err);
+        showAlert("فشل جلب المنتجات من جدول products: " + err.message, "error");
+    }
+}
+
+// 4. جلب قائمة الطلبات
+async function loadOrdersList() {
+    try {
+        const { data, error } = await client
+            .from('web_orders')
+            .select('id_web_order, client_name')
+            .order('id_web_order', { ascending: false })
+            .limit(25);
+
+        if (error) throw error;
+
+        const select = document.getElementById('orders-select');
+        select.innerHTML = '<option value="">-- اختر طلب --</option>';
+
+        if (data && data.length > 0) {
+            data.forEach(o => {
+                select.innerHTML += `<option value="${o.id_web_order}">طلب #${o.id_web_order} - ${o.client_name || 'بدون اسم'}</option>`;
+            });
+            showAlert("تم تحميل الطلبات المتاحة بنجاح", "success");
+            fetchSingleOrder(data[0].id_web_order);
+        } else {
+            select.innerHTML = '<option value="">لا توجد طلبات</option>';
+            showAlert("جدول web_orders فارغ", "error");
+        }
+    } catch (err) {
+        console.error("خطأ جلب الطلبات:", err);
+        showAlert("فشل جلب الطلبات: " + err.message, "error");
+    }
+}
+
+// 5. جلب بيانات طلب محدد ورسم تفاصيله
+async function fetchSingleOrder(orderId) {
+    try {
+        showAlert(`جاري جلب الطلب رقم #${orderId}...`, 'info');
+        
+        // أ) جلب بيانات web_orders
+        const { data: order, error: orderErr } = await client
+            .from('web_orders')
+            .select('*')
+            .eq('id_web_order', orderId)
+            .single();
+
+        if (orderErr) throw orderErr;
+
+        // ب) جلب بيانات web_order_details
+        const { data: details, error: detailsErr } = await client
+            .from('web_order_details')
+            .select('*')
+            .eq('id_web_order', orderId);
+
+        if (detailsErr) throw detailsErr;
+
+        currentOrderId = order.id_web_order;
+        document.getElementById('active-order-id').textContent = currentOrderId;
+        document.getElementById('manual-order-id').value = currentOrderId;
+        document.getElementById('orders-select').value = currentOrderId;
+
+        // ملء خانات العميل
+        document.getElementById('client_name').value = order.client_name || '';
+        document.getElementById('client_phone').value = order.client_phone || '';
+        document.getElementById('client_second_phone').value = order.client_second_phone || '';
+        document.getElementById('client_address').value = order.client_address || '';
+
+        // ملء جدول التفاصيل
+        const tbody = document.getElementById('items-tbody');
+        tbody.innerHTML = '';
+
+        if (details && details.length > 0) {
+            details.forEach(item => addNewRow(item));
+        } else {
+            addNewRow();
+        }
+
+        recalculateTotal();
+        showAlert(`تم جلب الطلب #${currentOrderId} بنجاح`, 'success');
+
+    } catch (err) {
+        console.error("خطأ جلب الطلب:", err);
+        showAlert(`فشل جلب الطلب #${orderId}: ` + err.message, 'error');
+    }
+}
+
+// 6. إضافة صف وقراءة العمولة **مباشرةً من جدول products الأصلي**
+function addNewRow(data = null) {
+    const tbody = document.getElementById('items-tbody');
+    const tr = document.createElement('tr');
+    tr.className = "hover:bg-gray-50 transition";
+
+    let fetchedCommissionFromProducts = 0;
+
+    // بناء خيارات قائمة المنتجات
+    let options = `<option value="">-- اختر المنتج --</option>`;
+    globalProducts.forEach(p => {
+        const isSelected = data && data.id_product == p.id_product;
+        
+        // البحث عن العمولة الأصلية للمنتج من قائمة المنتجات
+        if (isSelected) {
+            fetchedCommissionFromProducts = p.commission || 0;
+        }
+
+        options += `<option value="${p.id_product}" data-price="${p.seal_price || 0}" data-commission="${p.commission || 0}" ${isSelected ? 'selected' : ''}>
+            ${p.product_name}
+        </option>`;
+    });
+
+    const defaultQte = data ? data.qte : 1;
+    const defaultPrice = data ? data.price : 0;
+    
+    // اعتماد القيمة المجلوبة من جدول products مباشرة
+    const commissionValue = fetchedCommissionFromProducts;
+
+    tr.innerHTML = `
+        <td class="p-2">
+            <select class="prod-select w-full border rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+                ${options}
+            </select>
+        </td>
+        <td class="p-2">
+            <input type="number" min="0.1" step="any" value="${defaultQte}" class="prod-qte w-full border rounded-lg p-2 text-center text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+        </td>
+        <td class="p-2">
+            <input type="number" min="0" step="any" value="${defaultPrice}" class="prod-price w-full border rounded-lg p-2 text-center text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+        </td>
+        <td class="p-2">
+            <input type="number" min="0" step="any" value="${commissionValue}" class="prod-commission w-full border border-emerald-300 bg-emerald-50 rounded-lg p-2 text-center text-xs font-semibold text-emerald-800 focus:ring-2 focus:ring-emerald-500 outline-none">
+        </td>
+        <td class="p-2 text-center font-bold text-gray-700 cell-amount">0.00</td>
+        <td class="p-2 text-center font-bold text-emerald-600 cell-total-commission">0.00</td>
+        <td class="p-2 text-center">
+            <button type="button" class="btn-remove text-red-500 hover:text-red-700 p-1">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    `;
+
+    tbody.appendChild(tr);
+
+    const select = tr.querySelector('.prod-select');
+    const qteInput = tr.querySelector('.prod-qte');
+    const priceInput = tr.querySelector('.prod-price');
+    const commInput = tr.querySelector('.prod-commission');
+    const removeBtn = tr.querySelector('.btn-remove');
+
+    // عند تغيير خيار المنتج في القائمة يتم تحديث عمولة المنتج وسعره فوراً من جدول المنتجات
+    select.addEventListener('change', () => {
+        const opt = select.options[select.selectedIndex];
+        if (opt && opt.value) {
+            priceInput.value = opt.getAttribute('data-price') || 0;
+            commInput.value = opt.getAttribute('data-commission') || 0;
+        } else {
+            commInput.value = 0;
+        }
+        updateRowCalculation(tr);
+    });
+
+    qteInput.addEventListener('input', () => updateRowCalculation(tr));
+    priceInput.addEventListener('input', () => updateRowCalculation(tr));
+    commInput.addEventListener('input', () => updateRowCalculation(tr));
+    
+    removeBtn.addEventListener('click', () => {
+        tr.remove();
+        recalculateTotal();
+    });
+
+    updateRowCalculation(tr);
+}
+
+// 7. حساب الصف بناءً على قيم العمولة
+function updateRowCalculation(tr) {
+    const qte = parseFloat(tr.querySelector('.prod-qte').value) || 0;
+    const price = parseFloat(tr.querySelector('.prod-price').value) || 0;
+    const unitCommission = parseFloat(tr.querySelector('.prod-commission').value) || 0;
+
+    const rowAmount = qte * price;
+    const rowCommission = qte * unitCommission;
+
+    tr.querySelector('.cell-amount').textContent = rowAmount.toFixed(2);
+    tr.querySelector('.cell-total-commission').textContent = rowCommission.toFixed(2);
+
+    recalculateTotal();
+}
+
+// 8. حساب الإجماليات
+function recalculateTotal() {
+    let totalAmount = 0;
+    let totalCommission = 0;
+
+    document.querySelectorAll('#items-tbody tr').forEach(tr => {
+        totalAmount += parseFloat(tr.querySelector('.cell-amount').textContent) || 0;
+        totalCommission += parseFloat(tr.querySelector('.cell-total-commission').textContent) || 0;
+    });
+
+    document.getElementById('summary-total').textContent = totalAmount.toFixed(2);
+    document.getElementById('summary-commission').textContent = totalCommission.toFixed(2);
+}
+
+// 9. حفظ التعديلات
+async function handleSave(e) {
+    e.preventDefault();
+
+    if (!currentOrderId) {
+        showAlert('لا يوجد طلب محدد للحفظ!', 'error');
+        return;
+    }
+
+    const saveBtn = document.getElementById('btn-save');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'جاري الحفظ...';
+
+    try {
+        const clientName = document.getElementById('client_name').value;
+        const clientPhone = document.getElementById('client_phone').value;
+        const clientSecondPhone = document.getElementById('client_second_phone').value;
+        const clientAddress = document.getElementById('client_address').value;
+        const totalAmount = parseFloat(document.getElementById('summary-total').textContent) || 0;
+
+        // أ) تحديث web_orders
+        const { error: updateOrderErr } = await client
+            .from('web_orders')
+            .update({
+                client_name: clientName,
+                client_phone: clientPhone,
+                client_second_phone: clientSecondPhone,
+                client_address: clientAddress,
+                total_amount: totalAmount
+            })
+            .eq('id_web_order', currentOrderId);
+
+        if (updateOrderErr) throw updateOrderErr;
+
+        // ب) حذف تفاصيل الطلب القديمة
+        const { error: deleteErr } = await client
+            .from('web_order_details')
+            .delete()
+            .eq('id_web_order', currentOrderId);
+
+        if (deleteErr) throw deleteErr;
+
+        // ج) إدراج التفاصيل الجديدة
+        const newDetails = [];
+        document.querySelectorAll('#items-tbody tr').forEach(tr => {
+            const select = tr.querySelector('.prod-select');
+            if (select && select.value) {
+                const opt = select.options[select.selectedIndex];
+                const qte = parseFloat(tr.querySelector('.prod-qte').value) || 0;
+                const price = parseFloat(tr.querySelector('.prod-price').value) || 0;
+                
+                const rawName = opt.text.trim();
+
+                newDetails.push({
+                    id_web_order: currentOrderId,
+                    id_product: parseInt(select.value),
+                    product_name: rawName,
+                    qte: qte,
+                    price: price,
+                    amount: qte * price
+                });
+            }
+        });
+
+        if (newDetails.length > 0) {
+            const { error: insertErr } = await client
+                .from('web_order_details')
+                .insert(newDetails);
+
+            if (insertErr) throw insertErr;
+        }
+
+        showAlert(`تم حفظ وتحديث الطلب #${currentOrderId} بنجاح!`, 'success');
+
+    } catch (err) {
+        console.error("خطأ أثناء الحفظ:", err);
+        showAlert("فشل الحفظ: " + err.message, "error");
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-save ml-1"></i> حفظ التعديلات';
+    }
+}
+</script>
+
+</body>
+</html>
