@@ -41,7 +41,6 @@
         /* مدخلات البيانات المصغرة */
         .input-field { width: 100%; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 12px; background: #fff; outline: none; transition: border 0.2s; }
         .input-field:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,0.1); }
-        .input-commission { color: #b45309; font-weight: 700; }
 
         /* الحالات */
         .badge { padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 800; display: inline-block; }
@@ -49,14 +48,14 @@
         .badge-pending { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
 
         /* أزرار العمليات */
-        .actions-group { display: flex; gap: 6px; }
+        .actions-group { display: flex; gap: 6px; flex-wrap: wrap; }
         .btn-action { padding: 6px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; border: 1px solid transparent; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; }
         .btn-approve { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
         .btn-unapprove { background: #fffbeb; color: #b45309; border-color: #fde68a; }
         .btn-view { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
         .btn-delete { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
 
-        /* النافذة المنخفضة (Modal) */
+        /* النافذة المنبثقة (Modal) */
         .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 100; display: none; align-items: flex-end; justify-content: center; padding: 0; }
         .modal-overlay.active { display: flex; }
         .modal-box { background: white; width: 100%; max-width: 500px; border-radius: 24px 24px 0 0; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
@@ -146,8 +145,7 @@
             <div id="modalInvoiceCard" class="modal-body"></div>
 
             <div class="modal-footer no-print">
-                <button onclick="closeInvoiceModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2.5 px-5 rounded-xl text-xs transition">
-                    إغلاق</button>
+                <button onclick="closeInvoiceModal()" class="btn-modal btn-close-modal">إغلاق</button>
                 <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                     <button onclick="sendToWhatsappDirectly()" class="btn-modal btn-whatsapp">💬 واتساب</button>
                     <button onclick="copyInvoiceText()" class="btn-modal btn-copy">📋 نسخ</button>
@@ -158,8 +156,8 @@
     </div>
 
     <script>
-        const SUPABASE_URL = "https://hjcaocvhzeejmglzjuub.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_fLbGeBPrc94jjWEL0mZRbg_tNdOhFnd"; 
+        const SUPABASE_URL = "https://ihlwkwiimimoiplfqcdk.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_Yr8COAP3Hp_cibgD1wdQZg_Ic9zZEoK"; 
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let globalOrders = [];
@@ -171,13 +169,6 @@
 
         function saveExtraData(data) {
             try { localStorage.setItem('orders_extra_data', JSON.stringify(data)); } catch (e) {}
-        }
-
-        function getActiveCommission(order) {
-            if (order.custom_commission !== undefined && order.custom_commission !== null && order.custom_commission !== '') {
-                return Number(order.custom_commission) || 0;
-            }
-            return Number(order.calculated_commission || 0);
         }
 
         async function fetchOrders() {
@@ -249,7 +240,6 @@
                     o.custom_marketer_name = extra.name !== undefined ? extra.name : (isArchived ? approvedMap[o.id_web_order].custom_marketer_name : (o.custom_marketer_name || ''));
                     o.custom_bank_name = extra.bank !== undefined ? extra.bank : (isArchived ? approvedMap[o.id_web_order].custom_bank_name : (o.custom_bank_name || ''));
                     o.custom_marketer_account = extra.account !== undefined ? extra.account : (isArchived ? approvedMap[o.id_web_order].custom_marketer_account : (o.custom_marketer_account || ''));
-                    o.custom_commission = extra.commission !== undefined ? extra.commission : (isArchived ? approvedMap[o.id_web_order].custom_commission : '');
                     o.is_approved = isArchived;
                 });
 
@@ -265,17 +255,6 @@
             renderOrders(globalOrders);
         }
 
-        function updateCommissionDisplay(orderId) {
-            const order = globalOrders.find(o => o.id_web_order === orderId);
-            if (!order) return;
-            const activeCommission = getActiveCommission(order).toFixed(2) + ' ج.س';
-            
-            const desktopElem = document.getElementById(`comm-desktop-${orderId}`);
-            const mobileElem = document.getElementById(`comm-mobile-${orderId}`);
-            if (desktopElem) desktopElem.textContent = '💵 ' + activeCommission;
-            if (mobileElem) mobileElem.textContent = activeCommission;
-        }
-
         function setOrderMarketerData(orderId, field, value) {
             const order = globalOrders.find(o => o.id_web_order === orderId);
             if (order) {
@@ -286,10 +265,8 @@
                 if (field === 'custom_marketer_name') savedExtra[orderId].name = value;
                 if (field === 'custom_bank_name') savedExtra[orderId].bank = value;
                 if (field === 'custom_marketer_account') savedExtra[orderId].account = value;
-                if (field === 'custom_commission') savedExtra[orderId].commission = value;
 
                 saveExtraData(savedExtra);
-                if (field === 'custom_commission') updateCommissionDisplay(orderId);
             }
         }
 
@@ -309,7 +286,6 @@
                         client_address: order.client_address || '',
                         total_amount: Number(order.total_amount || 0),
                         calculated_commission: Number(order.calculated_commission || 0),
-                        custom_commission: order.custom_commission !== undefined ? String(order.custom_commission) : '',
                         custom_marketer_name: order.custom_marketer_name || '',
                         custom_bank_name: order.custom_bank_name || '',
                         custom_marketer_account: order.custom_marketer_account || '',
@@ -369,7 +345,7 @@
                 detailsHtml = `<tr><td colspan="4" style="text-align: center; padding: 20px; color: #94a3b8; font-size: 12px;">لا توجد تفاصيل للمنتجات</td></tr>`;
             }
 
-            const activeCommission = getActiveCommission(order);
+            const activeCommission = Number(order.calculated_commission || 0);
 
             modalBody.innerHTML = `
             <div id="printableInvoice" style="display: flex; flex-direction: column; gap: 14px;">
@@ -421,62 +397,64 @@
             document.getElementById('invoiceModal').classList.add('active');
         }
 
-        // دالة إرسال وتحويل ذكية تضمن فتح تطبيق الواتساب لاختيار جهة الاتصال
-async function sendToWhatsappDirectly() {
-    if (!currentActiveOrder) return;
-    const activeComm = typeof getActiveCommission === 'function' ? getActiveCommission(currentActiveOrder) : 0;
-    
-    let detailsList = '';
-    if (currentActiveOrder.web_order_details && currentActiveOrder.web_order_details.length > 0) {
-        currentActiveOrder.web_order_details.forEach((item, idx) => {
-            const amount = Number(item.amount || (item.qte * item.price) || 0).toFixed(2);
-            detailsList += `${idx + 1}. ${item.product_name || 'منتج'} (الكمية: ${item.qte || item.quantity || 1}) - المجموع: ${amount} ج.س\n`;
-        });
-    }
+        function closeInvoiceModal() {
+            document.getElementById('invoiceModal').classList.remove('active');
+            currentActiveOrder = null;
+        }
 
-    let marketerSection = '';
-    if (currentActiveOrder.custom_marketer_name || currentActiveOrder.custom_bank_name || currentActiveOrder.custom_marketer_account) {
-        marketerSection = `------------------\n` +
-                          `📋 *بيانات المسوق والتحويل:*\n` +
-                          (currentActiveOrder.custom_marketer_name ? `• المسوق: ${currentActiveOrder.custom_marketer_name}\n` : '') +
-                          (currentActiveOrder.custom_bank_name ? `• البنك: ${currentActiveOrder.custom_bank_name}\n` : '') +
-                          (currentActiveOrder.custom_marketer_account ? `• الحساب: ${currentActiveOrder.custom_marketer_account}\n` : '');
-    }
+        async function sendToWhatsappDirectly() {
+            if (!currentActiveOrder) return;
+            const activeComm = Number(currentActiveOrder.calculated_commission || 0);
+            
+            let detailsList = '';
+            if (currentActiveOrder.web_order_details && currentActiveOrder.web_order_details.length > 0) {
+                currentActiveOrder.web_order_details.forEach((item, idx) => {
+                    const amount = Number(item.amount || (item.qte * item.price) || 0).toFixed(2);
+                    detailsList += `${idx + 1}. ${item.product_name || 'منتج'} (الكمية: ${item.qte || item.quantity || 1}) - المجموع: ${amount} ج.س\n`;
+                });
+            }
 
-    const msg = `🧾 *فاتورة طلب #${currentActiveOrder.id_web_order}*\n` +
-                `------------------\n` +
-                `👤 العميل: ${currentActiveOrder.client_name || 'بدون اسم'}\n` +
-                `📱 الهاتف الأساسي: ${currentActiveOrder.client_phone || '-'}\n` +
-                `📞 الهاتف الاحتياطي: ${currentActiveOrder.client_second_phone || 'لا يوجد'}\n` +
-                `📍 العنوان: ${currentActiveOrder.client_address || 'لم يحدد'}\n` +
-                `------------------\n` +
-                `📦 *المنتجات:*\n${detailsList}` +
-                `------------------\n` +
-                `💵 العمولة المستحقة: ${activeComm.toFixed(2)} ج.س\n` +
-                marketerSection +
-                `💰 *الإجمالي الكلي: ${Number(currentActiveOrder.total_amount || 0).toFixed(2)} ج.س*`;
+            let marketerSection = '';
+            if (currentActiveOrder.custom_marketer_name || currentActiveOrder.custom_bank_name || currentActiveOrder.custom_marketer_account) {
+                marketerSection = `------------------\n` +
+                                  `📋 *بيانات المسوق والتحويل:*\n` +
+                                  (currentActiveOrder.custom_marketer_name ? `• المسوق: ${currentActiveOrder.custom_marketer_name}\n` : '') +
+                                  (currentActiveOrder.custom_bank_name ? `• البنك: ${currentActiveOrder.custom_bank_name}\n` : '') +
+                                  (currentActiveOrder.custom_marketer_account ? `• الحساب: ${currentActiveOrder.custom_marketer_account}\n` : '');
+            }
 
-    const encodedText = encodeURIComponent(msg);
-    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+            const msg = `🧾 *فاتورة طلب #${currentActiveOrder.id_web_order}*\n` +
+                        `------------------\n` +
+                        `👤 العميل: ${currentActiveOrder.client_name || 'بدون اسم'}\n` +
+                        `📱 الهاتف الأساسي: ${currentActiveOrder.client_phone || '-'}\n` +
+                        `📞 الهاتف الاحتياطي: ${currentActiveOrder.client_second_phone || 'لا يوجد'}\n` +
+                        `📍 العنوان: ${currentActiveOrder.client_address || 'لم يحدد'}\n` +
+                        `------------------\n` +
+                        `📦 *المنتجات:*\n${detailsList}` +
+                        `------------------\n` +
+                        `💵 العمولة المستحقة: ${activeComm.toFixed(2)} ج.س\n` +
+                        marketerSection +
+                        `💰 *الإجمالي الكلي: ${Number(currentActiveOrder.total_amount || 0).toFixed(2)} ج.س*`;
 
-    // 1. أجهزة أندرويد: استخدام Intent المباشر لفتح تطبيق واتساب فوراً على قائمة الأسماء
-    if (/android/i.test(userAgent)) {
-        window.location.href = `intent://send?text=${encodedText}#Intent;scheme=whatsapp;package=com.whatsapp;end`;
-        return;
-    }
+            const encodedText = encodeURIComponent(msg);
+            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
 
-    // 2. أجهزة iOS (آيفون/آيباد): استخدام بروتوكول api.whatsapp المباشر
-    if (/iPhone|iPad|iPod/i.test(userAgent)) {
-        window.location.href = `https://api.whatsapp.com/send?text=${encodedText}`;
-        return;
-    }
+            if (/android/i.test(userAgent)) {
+                window.location.href = `intent://send?text=${encodedText}#Intent;scheme=whatsapp;package=com.whatsapp;end`;
+                return;
+            }
 
-    // 3. أجهزة الكمبيوتر ومتصفحات الويب الأخرى
-    window.location.href = `https://web.whatsapp.com/send?text=${encodedText}`;
-}
+            if (/iPhone|iPad|iPod/i.test(userAgent)) {
+                window.location.href = `https://api.whatsapp.com/send?text=${encodedText}`;
+                return;
+            }
+
+            window.location.href = `https://web.whatsapp.com/send?text=${encodedText}`;
+        }
+
         function copyInvoiceText() {
             if (!currentActiveOrder) return;
-            const activeComm = getActiveCommission(currentActiveOrder);
+            const activeComm = Number(currentActiveOrder.calculated_commission || 0);
             let text = `تفاصيل الطلب #${currentActiveOrder.id_web_order}\nالعميل: ${currentActiveOrder.client_name || ''}\nالهاتف الأساسي: ${currentActiveOrder.client_phone || ''}\nالهاتف الاحتياطي: ${currentActiveOrder.client_second_phone || 'لا يوجد'}\nالعنوان: ${currentActiveOrder.client_address || ''}\nالعمولة المستحقة: ${activeComm.toFixed(2)} ج.س\nالإجمالي: ${Number(currentActiveOrder.total_amount || 0).toFixed(2)} ج.س`;
             navigator.clipboard.writeText(text).then(() => { alert('تم نسخ تفاصيل الفاتورة بنجاح'); });
         }
@@ -498,12 +476,17 @@ async function sendToWhatsappDirectly() {
             orders.forEach(order => {
                 const date = order.date_created ? new Date(order.date_created).toLocaleString('ar-SD') : 'غير محدد';
                 const total = Number(order.total_amount || 0).toFixed(2);
-                const activeCommission = getActiveCommission(order);
+                const activeCommission = Number(order.calculated_commission || 0);
                 
                 const statusBadge = order.is_approved 
                     ? `<span class="badge badge-approved">✅ معتمد</span>`
                     : `<span class="badge badge-pending">⏳ قيد الانتظار</span>`;
 
+                const approveBtn = order.is_approved
+                    ? `<button onclick="toggleApproval(${order.id_web_order})" class="btn-action btn-unapprove">إلغاء الاعتماد</button>`
+                    : `<button onclick="toggleApproval(${order.id_web_order})" class="btn-action btn-approve">اعتماد وحفظ</button>`;
+
+                // كروت الشاشة الصغيرة (الجوال)
                 cardsHtml += `
                 <div class="order-card-mobile">
                     <div class="order-card-header">
@@ -524,61 +507,52 @@ async function sendToWhatsappDirectly() {
 
                     <div style="background: #fef3c7; padding: 8px 12px; border-radius: 10px; border: 1px solid #fde68a; display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
                         <span style="font-weight: bold; color: #92400e;">💵 العمولة:</span>
-                        <span id="comm-mobile-${order.id_web_order}" style="font-weight: 900; color: #b45309;">${activeCommission.toFixed(2)} ج.س</span>
+                        <span style="font-weight: 900; color: #b45309;">${activeCommission.toFixed(2)} ج.س</span>
                     </div>
 
-                    <div style="background: #eef2ff; padding: 10px; border-radius: 10px; border: 1px solid #e0e7ff; display: flex; flex-direction: column; gap: 6px;">
-                        <span style="font-size: 11px; font-weight: bold; color: #3730a3;">بيانات المسوق والتحويل:</span>
-                        <input type="text" placeholder="اسم المسوق" value="${order.custom_marketer_name || ''}" 
-                            oninput="setOrderMarketerData(${order.id_web_order}, 'custom_marketer_name', this.value)" class="input-field">
-                        <input type="text" placeholder="اسم البنك (مثال: بنك الخرطوم)" value="${order.custom_bank_name || ''}" 
-                            oninput="setOrderMarketerData(${order.id_web_order}, 'custom_bank_name', this.value)" class="input-field">
-                        <input type="text" placeholder="رقم الحساب البنكي" value="${order.custom_marketer_account || ''}" 
-                            oninput="setOrderMarketerData(${order.id_web_order}, 'custom_marketer_account', this.value)" class="input-field">
-                        <input type="number" placeholder="تعديل العمولة يدوياً (ج.س)" value="${order.custom_commission !== undefined ? order.custom_commission : ''}" 
-                            oninput="setOrderMarketerData(${order.id_web_order}, 'custom_commission', this.value)" class="input-field input-commission">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                        <input type="text" placeholder="اسم المسوق" value="${order.custom_marketer_name || ''}" oninput="setOrderMarketerData(${order.id_web_order}, 'custom_marketer_name', this.value)" class="input-field">
+                        <input type="text" placeholder="اسم البنك" value="${order.custom_bank_name || ''}" oninput="setOrderMarketerData(${order.id_web_order}, 'custom_bank_name', this.value)" class="input-field">
                     </div>
+                    <input type="text" placeholder="رقم حساب المسوق" value="${order.custom_marketer_account || ''}" oninput="setOrderMarketerData(${order.id_web_order}, 'custom_marketer_account', this.value)" class="input-field">
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; padding-top: 4px; border-top: 1px solid #f1f5f9;">
-                        <button onclick="toggleApproval(${order.id_web_order})" class="btn-action ${order.is_approved ? 'btn-unapprove' : 'btn-approve'}">
-                            ${order.is_approved ? '⏳ إلغاء' : '✅ اعتماد'}
-                        </button>
-                        <button onclick="openInvoiceModal(${order.id_web_order})" class="btn-action btn-view">👁️ معاينة</button>
+                    <div class="actions-group" style="margin-top: 4px;">
+                        ${approveBtn}
+                        <button onclick="openInvoiceModal(${order.id_web_order})" class="btn-action btn-view">👁️ الفاتورة</button>
                         <button onclick="deleteOrder(${order.id_web_order})" class="btn-action btn-delete">🗑️ حذف</button>
                     </div>
                 </div>`;
 
+                // جدول الشاشات الكبيرة
                 tableHtml += `
                 <tr>
                     <td style="font-weight: bold; color: #0f172a;">#${order.id_web_order}</td>
                     <td>
-                        <div style="font-weight: bold; color: #0f172a;">${order.client_name || 'بدون اسم'}</div>
-                        <div style="color: #059669; direction: ltr; font-size: 12px; font-weight: 600;">📱 ${order.client_phone || '-'}</div>
-                        <div style="color: #64748b; font-size: 11px; direction: ltr;">📞 ${order.client_second_phone || '-'}</div>
+                        <div style="font-weight: bold;">${order.client_name || 'بدون اسم'}</div>
+                        <div style="color: #059669; font-size: 11px; direction: ltr; text-align: right;">📱 ${order.client_phone || '-'}</div>
+                        <div style="color: #64748b; font-size: 11px; direction: ltr; text-align: right;">📞 ${order.client_second_phone || 'لا يوجد'}</div>
+                        <div style="color: #64748b; font-size: 11px;">📍 ${order.client_address || 'لم يحدد'}</div>
                     </td>
                     <td>
-                        <div style="display: flex; flex-direction: column; gap: 6px;">
-                            <input type="text" placeholder="اسم المسوق" value="${order.custom_marketer_name || ''}" 
-                                oninput="setOrderMarketerData(${order.id_web_order}, 'custom_marketer_name', this.value)" class="input-field">
-                            <input type="text" placeholder="اسم البنك" value="${order.custom_bank_name || ''}" 
-                                oninput="setOrderMarketerData(${order.id_web_order}, 'custom_bank_name', this.value)" class="input-field">
-                            <input type="text" placeholder="رقم الحساب" value="${order.custom_marketer_account || ''}" 
-                                oninput="setOrderMarketerData(${order.id_web_order}, 'custom_marketer_account', this.value)" class="input-field">
-                            <input type="number" placeholder="تعديل العمولة" value="${order.custom_commission !== undefined ? order.custom_commission : ''}" 
-                                oninput="setOrderMarketerData(${order.id_web_order}, 'custom_commission', this.value)" class="input-field input-commission">
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <input type="text" placeholder="اسم المسوق" value="${order.custom_marketer_name || ''}" oninput="setOrderMarketerData(${order.id_web_order}, 'custom_marketer_name', this.value)" class="input-field">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+                                <input type="text" placeholder="البنك" value="${order.custom_bank_name || ''}" oninput="setOrderMarketerData(${order.id_web_order}, 'custom_bank_name', this.value)" class="input-field">
+                                <input type="text" placeholder="رقم الحساب" value="${order.custom_marketer_account || ''}" oninput="setOrderMarketerData(${order.id_web_order}, 'custom_marketer_account', this.value)" class="input-field">
+                            </div>
                         </div>
                     </td>
-                    <td><span id="comm-desktop-${order.id_web_order}" style="font-weight: 900; color: #b45309;">💵 ${activeCommission.toFixed(2)} ج.س</span></td>
+                    <td style="font-weight: 800; color: #b45309;">
+                        💵 ${activeCommission.toFixed(2)} ج.س
+                    </td>
                     <td>${statusBadge}</td>
-                    <td style="font-weight: 900; color: #1e3a8a;">${total} ج.س</td>
-                    <td style="color: #64748b; font-size: 11px; direction: ltr; text-align: right;">${date}</td>
-                    <td style="text-align: center;">
-                        <div style="display: flex; justify-content: center; gap: 6px;">
-                            <button onclick="toggleApproval(${order.id_web_order})" class="btn-action ${order.is_approved ? 'btn-unapprove' : 'btn-approve'}" title="${order.is_approved ? 'إلغاء الاعتماد' : 'اعتماد وأرشفة'}">
-                                ${order.is_approved ? '⏳' : '✅'}
-                            </button>
-                            <button onclick="openInvoiceModal(${order.id_web_order})" class="btn-action btn-view" title="معاينة">👁️</button>
-                            <button onclick="deleteOrder(${order.id_web_order})" class="btn-action btn-delete" title="حذف">🗑️</button>
+                    <td style="font-weight: 900; color: #2563eb;">${total} ج.س</td>
+                    <td style="font-size: 11px; color: #64748b;">${date}</td>
+                    <td>
+                        <div class="actions-group" style="justify-content: center;">
+                            ${approveBtn}
+                            <button onclick="openInvoiceModal(${order.id_web_order})" class="btn-action btn-view">👁️ الفاتورة</button>
+                            <button onclick="deleteOrder(${order.id_web_order})" class="btn-action btn-delete">🗑️ حذف</button>
                         </div>
                     </td>
                 </tr>`;
@@ -588,7 +562,8 @@ async function sendToWhatsappDirectly() {
             mobileList.innerHTML = cardsHtml;
         }
 
-        window.onload = () => { fetchOrders(); };
+        // جلب الطلبات عند تحميل الصفحة
+        window.onload = fetchOrders;
     </script>
 </body>
 </html>
