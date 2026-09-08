@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>إدارة الأصناف</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable"></script>
+<script src="https://cdn.jsdelivr.net/npm/arabic-persian-reshaper/js/arabic-persian-reshaper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bidi-js/dist/bidi.min.js"></script>
+
+<style>
+
+body{
+font-family:Tahoma, sans-serif;
+background:#f4f6f9;
+padding:10px;
+margin:0;
+}
+
+.container{
+max-width:700px;
+margin:auto;
+background:white;
+padding:15px;
+border-radius:10px;
+box-shadow:0 0 10px rgba(0,0,0,0.1);
+}
+
+h2{
+text-align:center;
+margin-bottom:15px;
+font-size:20px;
+}
+
+input{
+width:100%;
+padding:12px;
+margin-top:5px;
+border:1px solid #ccc;
+border-radius:5px;
+font-size:16px;
+box-sizing: border-box;
+}
+
+.search{
+margin-top:10px;
+background:#fafafa;
+}
+
+button{
+padding:10px;
+border:none;
+border-radius:5px;
+cursor:pointer;
+margin-top:10px;
+font-size:14px;
+}
+
+.save{background:#28a745;color:white;}
+.edit{background:#ffc107;}
+.delete{background:#dc3545;color:white;}
+.logout{background:#333;color:white;}
+
+.top-buttons{
+display:flex;
+flex-wrap:wrap;
+gap:10px;
+justify-content:space-between;
+}
+
+.table-wrapper{
+overflow-x:auto;
+margin-top:10px;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+min-width:400px;
+}
+
+th,td{
+border:1px solid #ddd;
+padding:8px;
+text-align:center;
+font-size:14px;
+}
+
+th{
+background:#007bff;
+color:white;
+}
+
+tr:hover{
+background:#f1f1f1;
+}
+
+.message{
+text-align:center;
+margin-top:10px;
+color:green;
+font-weight:bold;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="top-buttons">
+<button onclick="history.back()">رجوع</button>
+<button class="logout" onclick="logout()">خروج</button>
+</div>
+
+<h2>إدارة الأصناف</h2>
+
+<input type="text" id="description_cat" placeholder="اسم الصنف">
+
+<button class="save" id="btnSave" onclick="saveCategory()">حفظ</button>
+<button onclick="exportPDF()">تصدير PDF</button>
+
+<input type="text" id="searchBox" class="search" placeholder="بحث..." onkeyup="searchCategory()">
+
+<div class="message" id="msg"></div>
+
+<div class="table-wrapper">
+<table>
+
+<thead>
+<tr>
+<th>الرقم</th>
+<th>الصنف</th>
+<th>تعديل</th>
+<th>حذف</th>
+</tr>
+</thead>
+
+<tbody id="tableBody"></tbody>
+
+</table>
+</div>
+
+</div>
+
+<script>
+
+// إصلاح المفتاح وحذف السطر الجديد
+const supabaseUrl = "https://hjcaocvhzeejmglzjuub.supabase.co";
+const supabaseKey = "sb_publishable_fLbGeBPrc94jjWEL0mZRbg_tNdOhFnd";
+const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+let edit_id = null;
+let categories = [];
+
+// تحميل الأصناف
+async function loadCategories(){
+    try {
+        const { data, error } = await supabaseClient
+            .from("categories")
+            .select("*")
+            .order("id_cat", { ascending: true });
+
+        if (error) throw error;
+
+        categories = data || [];
+        renderTable(categories);
+    } catch (err) {
+        console.error("خطأ في تحميل البيانات:", err);
+        showMsg("فشل تحميل الأصناف: " + err.message, true);
+    }
+}
+
+// عرض الجدول
+function renderTable(list){
+    let html = "";
+
+    if (!list || list.length === 0) {
+        document.getElementById("tableBody").innerHTML = `<tr><td colspan="4">لا توجد أصناف مسجلة</td></tr>`;
+        return;
+    }
+
+    list.forEach(function(row){
+        // تحويل النص للحماية عند التمرير داخل دالة التعديل
+        const safeName = (row.description_cat || '').replace(/'/g, "\\'");
+        
+        html += `
+        <tr>
+        <td>${row.id_cat}</td>
+        <td>${row.description_cat || ''}</td>
+        <td>
+        <button class="edit" onclick="editCategory('${row.id_cat}', '${safeName}')">
+        تعديل
+        </button>
+        </td>
+        <td>
+        <button class="delete" onclick="deleteCategory('${row.id_cat}')">
+        حذف
+        </button>
+        </td>
+        </tr>
+        `;
+    });
+
+    document.getElementById("tableBody").innerHTML = html;
+}
+
+// حفظ أو تعديل صنف
+async function saveCategory(){
+    let name = document.getElementById("description_cat").value.trim();
+
+    if(name === ""){
+        alert("اكتب اسم الصنف");
+        return;
+    }
+
+    try {
+        if(edit_id == null){
+            // إضافة صنف جديد
+            const { data, error } = await supabaseClient
+                .from("categories")
+                .insert([{ description_cat: name }]);
+
+            if (error) throw error;
+            showMsg("تمت إضافة الصنف بنجاح");
+        } else {
+            // تعديل صنف موجود (تحويل edit_id لنص مطابقة لـ TEXT في DB)
+            const { data, error } = await supabaseClient
+                .from("categories")
+                .update({ description_cat: name })
+                .eq("id_cat", String(edit_id));
+
+            if (error) throw error;
+            showMsg("تم تعديل الصنف بنجاح");
+            edit_id = null;
+            document.getElementById("btnSave").innerText = "حفظ";
+        }
+
+        document.getElementById("description_cat").value = "";
+        loadCategories();
+    } catch (err) {
+        console.error("خطأ أثناء الحفظ:", err);
+        showMsg("خطأ أثناء الحفظ: " + err.message, true);
+    }
+}
+
+// تجهيز التعديل
+function editCategory(id, name){
+    document.getElementById("description_cat").value = name;
+    edit_id = String(id);
+    document.getElementById("btnSave").innerText = "تحديث الصنف";
+}
+
+// حذف صنف
+async function deleteCategory(id){
+    if(!confirm("تأكيد الحذف؟")) return;
+
+    try {
+        const { error } = await supabaseClient
+            .from("categories")
+            .delete()
+            .eq("id_cat", String(id));
+
+        if (error) throw error;
+
+        showMsg("تم حذف الصنف بنجاح");
+        loadCategories();
+    } catch (err) {
+        console.error("خطأ أثناء الحذف:", err);
+        showMsg("خطأ أثناء الحذف: " + err.message, true);
+    }
+}
+
+// بحث
+function searchCategory(){
+    let word = document.getElementById("searchBox").value.toLowerCase().trim();
+
+    let filtered = categories.filter(c =>
+        (c.description_cat && c.description_cat.toLowerCase().includes(word)) ||
+        (c.id_cat && String(c.id_cat).toLowerCase().includes(word))
+    );
+
+    renderTable(filtered);
+}
+
+// عرض الرسائل
+function showMsg(text, isError = false){
+    const msgDiv = document.getElementById("msg");
+    msgDiv.innerText = text;
+    msgDiv.style.color = isError ? "red" : "green";
+
+    setTimeout(()=>{
+        msgDiv.innerText = "";
+    }, 3000);
+}
+
+// خروج
+function logout(){
+    window.location.href = "index.html";
+}
+
+// تحميل البيانات عند فتح الصفحة
+loadCategories();
+
+// تصدير PDF
+function exportPDF(){
+    const { jsPDF } = window.jspdf;
+    let doc = new jsPDF();
+
+    let rows = [];
+
+    categories.forEach(function(cat){
+        let name = cat.description_cat || '';
+        if (typeof ArabicPersianReshaper !== 'undefined') {
+            name = ArabicPersianReshaper.reshape(name);
+        }
+        if (typeof bidi_js !== 'undefined') {
+            name = bidi_js(name);
+        }
+        rows.push([cat.id_cat, name]);
+    });
+
+    let title = "كشف الأصناف";
+    if (typeof ArabicPersianReshaper !== 'undefined') title = ArabicPersianReshaper.reshape(title);
+    if (typeof bidi_js !== 'undefined') title = bidi_js(title);
+
+    doc.text(title, 90, 10);
+
+    doc.autoTable({
+        head:[["الرقم", "الصنف"]],
+        body:rows,
+        startY:20
+    });
+
+    doc.save("categories.pdf");
+}
+
+</script>
+
+</body>
+</html>
