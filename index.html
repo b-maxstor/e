@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نظام إدارة المبيعات - تسجيل الدخول</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+}
+
+body{
+font-family:'Cairo',Tahoma,sans-serif;
+background:
+linear-gradient(rgba(9,14,25,0.85),rgba(9,14,25,0.85)),
+url("https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?q=80&w=1600&auto=format&fit=crop") center/cover no-repeat;
+min-height:100vh;
+display:flex;
+align-items:center;
+justify-content:center;
+padding:20px;
+overflow:auto;
+}
+
+/* ===== الكرت الرئيسي ===== */
+
+.container{
+width:1100px;
+max-width:100%;
+min-height:650px;
+display:flex;
+background:rgba(255,255,255,0.08);
+backdrop-filter:blur(15px);
+border:1px solid rgba(255,255,255,0.12);
+border-radius:28px;
+overflow:hidden;
+box-shadow:
+0 20px 50px rgba(0,0,0,0.45),
+0 0 0 1px rgba(255,255,255,0.05);
+}
+
+/* ===== الجهة اليسرى ===== */
+
+.left{
+width:50%;
+position:relative;
+background:
+linear-gradient(180deg,rgba(0,0,0,0.2),rgba(0,0,0,0.65)),
+url("https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?q=80&w=1600&auto=format&fit=crop") center/cover;
+display:flex;
+align-items:flex-end;
+padding:40px;
+color:white;
+}
+
+.left::before{
+content:"";
+position:absolute;
+top:0;
+left:0;
+right:0;
+bottom:0;
+background:linear-gradient(135deg,#2563eb88,#7c3aed88);
+}
+
+.left-content{
+position:relative;
+z-index:2;
+}
+
+.brand{
+display:inline-flex;
+align-items:center;
+gap:10px;
+padding:10px 18px;
+background:rgba(255,255,255,0.15);
+border:1px solid rgba(255,255,255,0.15);
+border-radius:50px;
+font-size:14px;
+margin-bottom:18px;
+backdrop-filter:blur(8px);
+}
+
+.left h2{
+font-size:38px;
+line-height:1.5;
+margin-bottom:12px;
+font-weight:700;
+}
+
+.left p{
+font-size:16px;
+line-height:2;
+color:rgba(255,255,255,0.9);
+}
+
+/* ===== الجهة اليمنى ===== */
+
+.right{
+width:50%;
+background:white;
+padding:50px;
+display:flex;
+flex-direction:column;
+justify-content:center;
+position:relative;
+}
+
+/* شعار */
+
+.logo{
+width:70px;
+height:70px;
+border-radius:20px;
+background:linear-gradient(135deg,#2563eb,#7c3aed);
+display:flex;
+align-items:center;
+justify-content:center;
+color:white;
+font-size:28px;
+font-weight:bold;
+margin:0 auto 20px;
+box-shadow:0 10px 25px rgba(37,99,235,0.35);
+}
+
+/* العنوان */
+
+h1{
+text-align:center;
+font-size:32px;
+color:#111827;
+margin-bottom:10px;
+}
+
+.subtitle{
+text-align:center;
+color:#6b7280;
+margin-bottom:35px;
+font-size:15px;
+}
+
+/* الحقول */
+
+.input-group{
+margin-bottom:18px;
+}
+
+.label{
+display:block;
+margin-bottom:8px;
+font-size:14px;
+font-weight:600;
+color:#374151;
+}
+
+.input-box{
+position:relative;
+}
+
+.input-box input{
+width:100%;
+padding:15px 18px;
+border-radius:14px;
+border:1px solid #d1d5db;
+font-size:15px;
+background:#f9fafb;
+transition:0.3s;
+font-family:'Cairo',Tahoma,sans-serif;
+}
+
+.input-box input:focus{
+outline:none;
+background:white;
+border-color:#2563eb;
+box-shadow:0 0 0 4px rgba(37,99,235,0.12);
+}
+
+/* الزر */
+
+button{
+width:100%;
+padding:15px;
+border:none;
+border-radius:14px;
+background:linear-gradient(135deg,#2563eb,#7c3aed);
+color:white;
+font-size:17px;
+font-weight:700;
+cursor:pointer;
+transition:0.3s;
+margin-top:10px;
+font-family:'Cairo',Tahoma,sans-serif;
+box-shadow:0 10px 25px rgba(37,99,235,0.25);
+}
+
+button:hover{
+transform:translateY(-2px);
+box-shadow:0 15px 30px rgba(37,99,235,0.35);
+}
+
+button:disabled{
+opacity: 0.6;
+cursor: not-allowed;
+transform: none;
+}
+
+/* معلومات */
+
+.footer-text{
+margin-top:25px;
+text-align:center;
+font-size:13px;
+color:#9ca3af;
+line-height:1.8;
+}
+
+/* ===== تحسين الموبايل ===== */
+
+@media(max-width:950px){
+
+.container{
+flex-direction:column;
+min-height:auto;
+}
+
+.left{
+width:100%;
+min-height:240px;
+padding:30px;
+}
+
+.right{
+width:100%;
+padding:35px 25px;
+}
+
+.left h2{
+font-size:28px;
+}
+
+h1{
+font-size:26px;
+}
+
+}
+
+@media(max-width:480px){
+
+body{
+padding:12px;
+}
+
+.container{
+border-radius:22px;
+}
+
+.left{
+min-height:200px;
+padding:22px;
+}
+
+.left h2{
+font-size:22px;
+}
+
+.left p{
+font-size:14px;
+line-height:1.9;
+}
+
+.right{
+padding:28px 18px;
+}
+
+.logo{
+width:60px;
+height:60px;
+font-size:24px;
+border-radius:18px;
+}
+
+h1{
+font-size:23px;
+}
+
+.subtitle{
+font-size:14px;
+margin-bottom:25px;
+}
+
+.input-box input{
+padding:14px;
+font-size:14px;
+}
+
+button{
+padding:14px;
+font-size:16px;
+}
+
+}
+
+/* تحسين التمرير */
+
+::-webkit-scrollbar{
+width:8px;
+}
+
+::-webkit-scrollbar-thumb{
+background:#7c3aed;
+border-radius:20px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<!-- الجهة اليسرى -->
+
+<div class="left">
+
+<div class="left-content">
+
+<div class="brand">
+🚀 نظام حديث لإدارة المبيعات
+</div>
+
+<h2>
+إدارة ذكية<br>
+للمبيعات والمستخدمين
+</h2>
+
+<p>
+واجهة احترافية متوافقة مع الجوال والأجهزة الحديثة
+لتسهيل إدارة العمليات اليومية بسرعة وأمان.
+</p>
+
+</div>
+
+</div>
+
+<!-- الجهة اليمنى -->
+
+<div class="right">
+
+<div class="logo">💼</div>
+
+<h1>تسجيل الدخول</h1>
+
+<div class="subtitle">
+مرحباً بك في نظام إدارة المبيعات
+</div>
+
+<div class="input-group">
+<label class="label">اسم المستخدم</label>
+
+<div class="input-box">
+<input type="text" id="username" placeholder="أدخل اسم المستخدم">
+</div>
+</div>
+
+<div class="input-group">
+<label class="label">كلمة المرور</label>
+
+<div class="input-box">
+<input type="password" id="password" placeholder="أدخل كلمة المرور">
+</div>
+</div>
+
+<button id="btnLogin" onclick="login()">
+تسجيل الدخول
+</button>
+
+<div class="footer-text">
+جميع الحقوق محفوظة © نظام إدارة المبيعات
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+// استخدام مشروع Supabase الخاص بك المحدث
+const supabaseClient = window.supabase.createClient(
+    "https://ihlwkwiimimoiplfqcdk.supabase.co",
+    "sb_publishable_Yr8COAP3Hp_cibgD1wdQZg_Ic9zZEoK"
+);
+
+// دعم زر Enter
+document.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+        login();
+    }
+});
+
+async function login() {
+
+    const usernameInput = document.getElementById("username");
+    const passwordInput = document.getElementById("password");
+    const btnLogin = document.getElementById("btnLogin");
+
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value.trim();
+
+    if (!username || !password) {
+        alert("الرجاء إدخال اسم المستخدم وكلمة المرور");
+        return;
+    }
+
+    try {
+        // تغيير زر الدخول لحالة التحميل
+        btnLogin.disabled = true;
+        btnLogin.textContent = "جاري التحقق...";
+
+        const { data, error } = await supabaseClient
+            .from("tb_users")
+            .select("*")
+            .eq("username", username)
+            .eq("pwd", password)
+            .maybeSingle();
+
+        if (error) {
+            console.error(error);
+            alert("حدث خطأ أثناء الاتصال بقاعدة البيانات");
+            btnLogin.disabled = false;
+            btnLogin.textContent = "تسجيل الدخول";
+            return;
+        }
+
+        if (!data) {
+            alert("اسم المستخدم أو كلمة المرور غير صحيحة");
+            btnLogin.disabled = false;
+            btnLogin.textContent = "تسجيل الدخول";
+            return;
+        }
+
+        // 1. حفظ كائن المستخدم كاملاً للتعامل معه بسهولة
+        localStorage.setItem("user", JSON.stringify(data));
+
+        // 2. حفظ القيم المنفصلة للتوافق مع صفحات قديمة
+        localStorage.setItem("userId", data.id || "");
+        localStorage.setItem("userName", data.fullname || data.username || "");
+        localStorage.setItem("userRole", data.usertype || "");
+        localStorage.setItem("bankAccount", data.bank_account || "");
+
+        // التوجيه حسب نوع المستخدم
+        const userType = (data.usertype || "").trim();
+
+        switch (userType) {
+
+            case "مسوق":
+            case "مدير":
+            case "مشرف":
+            case "تقني حاسوب":
+            case "بائع":
+                // التوجيه المباشر للوحة التحكم الرئيسية dashboard.html
+                window.location.href = "dashboard.html";
+                break;
+
+            default:
+                // التوجيه الافتراضي لوحة التحكم الرئيسية
+                window.location.href = "dashboard.html";
+                break;
+
+        }
+
+    } catch (err) {
+
+        console.error("Login Error:", err);
+        alert("حدث خطأ أثناء تسجيل الدخول");
+        btnLogin.disabled = false;
+        btnLogin.textContent = "تسجيل الدخول";
+
+    }
+
+}
+
+</script>
+
+</body>
+</html>
